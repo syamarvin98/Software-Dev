@@ -1,7 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -13,9 +12,9 @@ public class MainGUI {
     private static final char[] SECURITY_PASSWORD = {'s', 'e', 'c', 'u', 'r', 'i', 't', 'y'};
 
     private JFrame mainFrame;
-    private JButton securityButton;
-    private JButton managerButton;
-    private JButton residentButton;
+    private final JButton securityButton;
+    private final JButton managerButton;
+    private final JButton residentButton;
 
     public MainGUI() {
         mainFrame = new JFrame("User Options");
@@ -27,29 +26,20 @@ public class MainGUI {
         managerButton = new JButton("Manager");
         residentButton = new JButton("Resident");
 
-        securityButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                SecurityLoginDialog loginDialog = new SecurityLoginDialog();
-                loginDialog.setVisible(true);
-                if (loginDialog.isLoginSuccessful()) {
-                    displaySecurityVisitorForm();
-                }
+        securityButton.addActionListener((ActionEvent e) -> {
+            SecurityLoginDialog loginDialog = new SecurityLoginDialog();
+            loginDialog.setVisible(true);
+            if (loginDialog.isLoginSuccessful()) {
+                displaySecurityVisitorForm();
             }
         });
 
-        managerButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                displayVisitorHistory();
-            }
+        managerButton.addActionListener((ActionEvent e) -> {
+            displayVisitorHistory();
         });
 
-        residentButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                JOptionPane.showMessageDialog(mainFrame, "Resident selected.");
-            }
+        residentButton.addActionListener((ActionEvent e) -> {
+            JOptionPane.showMessageDialog(mainFrame, "Resident selected.");
         });
 
         mainFrame.add(securityButton);
@@ -58,10 +48,8 @@ public class MainGUI {
     }
 
     public void display() {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                mainFrame.setVisible(true);
-            }
+        SwingUtilities.invokeLater(() -> {
+            mainFrame.setVisible(true);
         });
     }
 
@@ -82,46 +70,40 @@ public class MainGUI {
         JList<String> visitorList = new JList<>(visitorListModel);
         JScrollPane scrollPane = new JScrollPane(visitorList);
 
-        addButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String carPlate = carPlateField.getText();
-                String name = nameField.getText();
-                String reason = reasonField.getText();
-                String residentUnit = residentUnitField.getText();
-
-                String visitorInfo = "Car Plate: " + carPlate +
-                        " | Name: " + name +
-                        " | Reason: " + reason +
-                        " | Resident Unit: " + residentUnit;
-
-                visitorListModel.addElement(visitorInfo);
-
-                VisitorEntry visitorEntry = new VisitorEntry(carPlate, name, reason, residentUnit, LocalDateTime.now());
-                saveVisitorEntry(visitorEntry);
-
-                clearFields(carPlateField, nameField, reasonField, residentUnitField);
-            }
+        addButton.addActionListener((ActionEvent e) -> {
+            String carPlate = carPlateField.getText();
+            String name = nameField.getText();
+            String reason = reasonField.getText();
+            String residentUnit = residentUnitField.getText();
+            
+            String visitorInfo = "Car Plate: " + carPlate +
+                    " | Name: " + name +
+                    " | Reason: " + reason +
+                    " | Resident Unit: " + residentUnit;
+            
+            visitorListModel.addElement(visitorInfo);
+            
+            VisitorEntry visitorEntry = new VisitorEntry(carPlate, name, reason, residentUnit, LocalDateTime.now());
+            saveVisitorEntry(visitorEntry);
+            
+            clearFields(carPlateField, nameField, reasonField, residentUnitField);
         });
 
-        exitButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                int selectedIndex = visitorList.getSelectedIndex();
-                if (selectedIndex != -1) {
-                    String visitorInfo = visitorListModel.getElementAt(selectedIndex);
-                    String carPlate = extractValueFromVisitorInfo(visitorInfo, "Car Plate:");
-                    String name = extractValueFromVisitorInfo(visitorInfo, "Name:");
-
-                    int confirm = JOptionPane.showConfirmDialog(visitorFrame,
-                            "Are you sure " + name + " with car plate " + carPlate + " is exiting?",
-                            "Confirm Exit",
-                            JOptionPane.YES_NO_OPTION);
-
-                    if (confirm == JOptionPane.YES_OPTION) {
-                        visitorListModel.remove(selectedIndex);
-                        exitVisitor(carPlate);
-                    }
+        exitButton.addActionListener((ActionEvent e) -> {
+            int selectedIndex = visitorList.getSelectedIndex();
+            if (selectedIndex != -1) {
+                String visitorInfo = visitorListModel.getElementAt(selectedIndex);
+                String carPlate = extractValueFromVisitorInfo(visitorInfo, "Car Plate:");
+                String name = extractValueFromVisitorInfo(visitorInfo, "Name:");
+                
+                int confirm = JOptionPane.showConfirmDialog(visitorFrame,
+                        "Are you sure " + name + " with car plate " + carPlate + " is exiting?",
+                        "Confirm Exit",
+                        JOptionPane.YES_NO_OPTION);
+                
+                if (confirm == JOptionPane.YES_OPTION) {
+                    visitorListModel.remove(selectedIndex);
+                    exitVisitor(carPlate);
                 }
             }
         });
@@ -208,28 +190,27 @@ public class MainGUI {
     private void exitVisitor(String carPlate) {
         try {
             File tempFile = new File("temp.csv");
-            BufferedReader reader = new BufferedReader(new FileReader(VISITOR_DATA_FILE));
-            BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile));
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] entryParts = line.split(",");
-                if (entryParts.length >= 5 && entryParts[0].equals(carPlate)) {
-                    if (entryParts.length == 5) {
-                        String[] newEntryParts = Arrays.copyOf(entryParts, 6);
-                        entryParts = newEntryParts;
+            BufferedWriter writer;
+            try (BufferedReader reader = new BufferedReader(new FileReader(VISITOR_DATA_FILE))) {
+                writer = new BufferedWriter(new FileWriter(tempFile));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] entryParts = line.split(",");
+                    if (entryParts.length >= 5 && entryParts[0].equals(carPlate)) {
+                        if (entryParts.length == 5) {
+                            String[] newEntryParts = Arrays.copyOf(entryParts, 6);
+                            entryParts = newEntryParts;
+                        }
+                        if (entryParts[5].equals("N/A")) {
+                            LocalDateTime now = LocalDateTime.now();
+                            entryParts = Arrays.copyOf(entryParts, 6);
+                            entryParts[5] = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                        }
                     }
-                    if (entryParts[5].equals("N/A")) {
-                        LocalDateTime now = LocalDateTime.now();
-                        entryParts = Arrays.copyOf(entryParts, 6);
-                        entryParts[5] = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-                    }
+                    writer.write(String.join(",", entryParts));
+                    writer.newLine();
                 }
-                writer.write(String.join(",", entryParts));
-                writer.newLine();
             }
-
-            reader.close();
             writer.close();
 
             File oldFile = new File(VISITOR_DATA_FILE);
@@ -267,19 +248,16 @@ public class MainGUI {
             passwordField = new JPasswordField();
 
             JButton loginButton = new JButton("Login");
-            loginButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    String username = usernameField.getText();
-                    char[] password = passwordField.getPassword();
-
-                    if (username.equals(SECURITY_USERNAME) && comparePasswords(password, SECURITY_PASSWORD)) {
-                        loginSuccessful = true;
-                        dispose();
-                    } else {
-                        JOptionPane.showMessageDialog(SecurityLoginDialog.this, "Invalid username or password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
-                        clearFields(usernameField, passwordField);
-                    }
+            loginButton.addActionListener((ActionEvent e) -> {
+                String username = usernameField.getText();
+                char[] password = passwordField.getPassword();
+                
+                if (username.equals(SECURITY_USERNAME) && comparePasswords(password, SECURITY_PASSWORD)) {
+                    loginSuccessful = true;
+                    dispose();
+                } else {
+                    JOptionPane.showMessageDialog(SecurityLoginDialog.this, "Invalid username or password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
+                    clearFields(usernameField, passwordField);
                 }
             });
 
@@ -314,11 +292,11 @@ public class MainGUI {
     }
 
     private class VisitorEntry {
-        private String carPlate;
-        private String name;
-        private String reason;
-        private String residentUnit;
-        private LocalDateTime entryTime;
+        private final String carPlate;
+        private final String name;
+        private final String reason;
+        private final String residentUnit;
+        private final LocalDateTime entryTime;
 
         public VisitorEntry(String carPlate, String name, String reason, String residentUnit, LocalDateTime entryTime) {
             this.carPlate = carPlate;
